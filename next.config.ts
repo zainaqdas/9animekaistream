@@ -23,6 +23,11 @@ const nextConfig: NextConfig = {
         hostname: '**.wordpress.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: '**.anilist.co',
+        pathname: '/**',
+      },
     ],
   },
 };

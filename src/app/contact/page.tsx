@@ -24,7 +24,7 @@ export default function ContactPage() {
                             <Mail size={20} className="text-accent" />
                         </div>
                         <h3 className="font-bold uppercase tracking-wider text-sm">Email</h3>
-                        <p className="text-muted-foreground text-sm leading-relaxed">contact@kaistream.com</p>
+                        <p className="text-muted-foreground text-sm leading-relaxed">contact@oneechan.app</p>
                     </div>
                     <div className="bg-card/50 rounded-2xl p-6 border border-white/5 space-y-3">
                         <div className="p-3 w-fit rounded-xl bg-accent/10">

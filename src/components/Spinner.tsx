@@ -36,7 +36,7 @@ const Spinner: React.FC<SpinnerProps> = ({
             
             <div className="mt-8 flex flex-col items-center gap-2">
                 <h2 className="text-xl font-black italic tracking-tighter uppercase gradient-text animate-pulse">
-                    KaiStream
+                    OneeChan
                 </h2>
                 <p className="text-xs font-bold uppercase tracking-[0.3em] text-muted-foreground animate-pulse text-center">
                     {text}

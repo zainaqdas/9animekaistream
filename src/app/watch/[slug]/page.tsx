@@ -4,6 +4,7 @@ import Footer from '@/components/Footer';
 import VideoPlayer from '@/components/VideoPlayer';
 import Link from 'next/link';
 import { ChevronLeft, List, Play } from 'lucide-react';
+import AnilistProgress from '@/components/AnilistProgress';
 
 export default async function WatchPage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
@@ -13,6 +14,7 @@ export default async function WatchPage({ params }: { params: Promise<{ slug: st
     // e.g. "one-piece-episode-1162" -> "one-piece"
     const animeSlugMatch = slug.match(/(.+)-episode-\d+/);
     const animeSlug = animeSlugMatch ? animeSlugMatch[1] : slug.split('-episode-')[0];
+    const episodeNumber = parseInt(slug.split('-').pop() || '0', 10);
     const info = await getAnimeInfo(animeSlug);
 
     if (!streams || streams.length === 0) {
@@ -42,8 +44,13 @@ export default async function WatchPage({ params }: { params: Promise<{ slug: st
                             </Link>
                             <div className="flex items-center gap-4">
                                 <span className="bg-white/5 px-4 py-1.5 rounded-full text-xs font-bold border border-white/10 uppercase tracking-widest">
-                                    {slug.split('-').pop()?.replace('episode-', 'EP ')}
+                                    EP {episodeNumber}
                                 </span>
+                                <AnilistProgress
+                                    mediaTitle={info?.title}
+                                    currentEpisode={episodeNumber}
+                                    totalEpisodes={info?.episodes.length || null}
+                                />
                             </div>
                         </div>
 

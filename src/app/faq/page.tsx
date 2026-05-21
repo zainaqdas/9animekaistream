@@ -4,12 +4,12 @@ import { HelpCircle, ChevronDown } from 'lucide-react';
 
 const faqs = [
     {
-        question: "What is KaiStream?",
-        answer: "KaiStream is a free anime streaming platform that aggregates content from various sources to provide you with the best viewing experience. We offer a wide collection of anime with Sub and Dub options."
+        question: "What is OneeChan?",
+        answer: "OneeChan is a free anime streaming platform that aggregates content from various sources to provide you with the best viewing experience. We offer a wide collection of anime with Sub and Dub options."
     },
     {
-        question: "Is KaiStream free to use?",
-        answer: "Yes, KaiStream is completely free to use. There are no subscription fees or hidden charges. You can browse, search, and stream anime without any cost."
+        question: "Is OneeChan free to use?",
+        answer: "Yes, OneeChan is completely free to use. There are no subscription fees or hidden charges. You can browse, search, and stream anime without any cost."
     },
     {
         question: "Do I need to create an account?",
@@ -33,7 +33,7 @@ const faqs = [
     },
     {
         question: "Is my data safe?",
-        answer: "KaiStream does not collect any personal data. We don't use tracking cookies or analytics. Your privacy is important to us."
+        answer: "OneeChan does not collect any personal data. We don't use tracking cookies or analytics. Your privacy is important to us."
     }
 ];
 

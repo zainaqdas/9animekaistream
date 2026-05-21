@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Search, Menu } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Logo from './Logo';
+import UserMenu from './UserMenu';
 
 const Navbar = () => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -36,6 +37,7 @@ const Navbar = () => {
                     />
                     <Search className="absolute left-3 top-2.5 text-muted-foreground group-focus-within:text-accent transition-colors" size={18} />
                 </form>
+                <UserMenu />
             </div>
         </nav>
     );

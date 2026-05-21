@@ -1,8 +1,8 @@
-# 🐉 KaiStream - Premium Anime Streaming Platform
+# 🎀 OneeChan - Premium Anime Streaming Platform
 
-KaiStream is a modern, high-performance anime streaming web application built with **Next.js 16 (App Router)** and **Tailwind CSS v4**. It features a custom-built scraping engine with advanced caching to provide a seamless, ad-free viewing experience with a professional "Emerald" aesthetic.
+OneeChan is a modern, high-performance anime streaming web application built with **Next.js 16 (App Router)** and **Tailwind CSS v4**. It features a custom-built scraping engine with advanced caching to provide a seamless, ad-free viewing experience with a vibrant "Emerald" aesthetic.
 
-![KaiStream Hero](https://9anime.org.lv/wp-content/uploads/2024/08/One-Piece-cover-new-1.webp)
+![OneeChan Hero](https://9anime.org.lv/wp-content/uploads/2024/08/One-Piece-cover-new-1.webp)
 
 ## ✨ Features
 
@@ -50,7 +50,7 @@ The site will be available at `http://localhost:3000`.
 
 ## 📡 API Routes
 
-KaiStream includes built-in Next.js API routes that provide the same functionality as the previous standalone API:
+OneeChan includes built-in Next.js API routes that provide the same functionality as the previous standalone API:
 
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
@@ -62,7 +62,7 @@ KaiStream includes built-in Next.js API routes that provide the same functionali
 
 ## 🛡️ Caching Strategy
 
-KaiStream uses a sophisticated caching layer to ensure speed and stability:
+OneeChan uses a sophisticated caching layer to ensure speed and stability:
 -   **Search Results:** 24 Hours (Stable titles)
 -   **Anime Info:** 15 Minutes (Fast updates for new episodes)
 -   **Stream Links:** 2 Hours (Stable links)
@@ -73,7 +73,7 @@ KaiStream uses a sophisticated caching layer to ensure speed and stability:
 
 ## 🎨 Brand Identity
 
-KaiStream uses a bespoke **Emerald Green** theme (`#10b981`).
+OneeChan uses a bespoke **Emerald Green** theme (`#10b981`).
 -   **Mascot:** The Spirit Core — representing the energy and flow of the community.
 -   **Typography:** Bold, italicized uppercase headers for a high-energy streaming feel.
 -   **Background:** A custom mesh-style dark background with fixed emerald radial glows for depth and contrast.
@@ -81,6 +81,6 @@ KaiStream uses a bespoke **Emerald Green** theme (`#10b981`).
 ---
 
 ## ⚖️ Disclaimer
-KaiStream is a project created for educational purposes. It does not store any files on its server; all contents are provided by non-affiliated third parties.
+OneeChan is a project created for educational purposes. It does not store any files on its server; all contents are provided by non-affiliated third parties.
 
 Built with ❤️ for the anime community.

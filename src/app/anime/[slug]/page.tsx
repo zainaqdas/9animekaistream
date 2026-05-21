@@ -4,6 +4,7 @@ import Footer from '@/components/Footer';
 import { Play, Star, Calendar, Tv } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import AnilistAddButton from '@/components/AnilistAddButton';
 
 export default async function AnimeDetail({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
@@ -106,9 +107,11 @@ export default async function AnimeDetail({ params }: { params: Promise<{ slug: 
                                         WATCH NOW
                                     </button>
                                 </Link>
-                                <button className="bg-white/5 hover:bg-white/10 text-white px-6 py-4 rounded-xl font-bold flex items-center gap-3 transition-all hover:scale-105 border border-white/10">
-                                    ADD TO LIST
-                                </button>
+                                <AnilistAddButton
+                                    mediaId={0}
+                                    mediaTitle={info.title}
+                                    totalEpisodes={info.episodes.length}
+                                />
                             </div>
                         </div>
 

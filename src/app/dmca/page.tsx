@@ -25,10 +25,10 @@ export default function DmcaPage() {
                             <h2 className="text-lg font-bold uppercase tracking-wider">Policy</h2>
                         </div>
                         <p className="text-muted-foreground leading-relaxed text-sm">
-                            KaiStream respects the intellectual property rights of others. We comply with the Digital Millennium Copyright Act (DMCA) and respond to valid notices of alleged copyright infringement.
+                            OneeChan respects the intellectual property rights of others. We comply with the Digital Millennium Copyright Act (DMCA) and respond to valid notices of alleged copyright infringement.
                         </p>
                         <p className="text-muted-foreground leading-relaxed text-sm">
-                            Please note that KaiStream does not host any files on its servers. All content is embedded from third-party sources. If you believe your copyrighted work has been made available through our service without authorization, please submit a DMCA notice.
+                            Please note that OneeChan does not host any files on its servers. All content is embedded from third-party sources. If you believe your copyrighted work has been made available through our service without authorization, please submit a DMCA notice.
                         </p>
                     </section>
 
@@ -59,7 +59,7 @@ export default function DmcaPage() {
                             Send DMCA notices to:
                         </p>
                         <div className="bg-black/20 rounded-xl p-4 font-mono text-sm">
-                            <p>Email: dmca@kaistream.com</p>
+                            <p>Email: dmca@oneechan.app</p>
                         </div>
                         <p className="text-muted-foreground leading-relaxed text-sm">
                             We will review and respond to all valid DMCA notices promptly. Please allow up to 48 hours for a response.

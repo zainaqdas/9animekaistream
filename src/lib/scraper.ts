@@ -31,7 +31,7 @@ async function rateLimitedDelay(): Promise<void> {
 }
 
 // Cache System
-const CACHE_DIR = path.join(process.cwd(), '.next', 'cache', 'kaistream');
+const CACHE_DIR = path.join(process.cwd(), '.next', 'cache', 'oneechan');
 const CACHE_FILE = path.join(CACHE_DIR, 'cache.json');
 
 interface CacheEntry {
