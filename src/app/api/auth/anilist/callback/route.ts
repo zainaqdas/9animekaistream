@@ -1,25 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForToken, getViewer } from '@/lib/anilist';
 
-export async function GET(req: NextRequest) {
-    const code = req.nextUrl.searchParams.get('code');
+export async function GET(request: NextRequest) {
+    const { searchParams } = new URL(request.url);
+    const code = searchParams.get('code');
 
     if (!code) {
-        return NextResponse.redirect(new URL('/?error=no_code', req.url));
+        return NextResponse.redirect(new URL('/?error=no_code', request.url));
     }
 
     try {
         const tokenData = await exchangeCodeForToken(code);
         const viewer = await getViewer(tokenData.access_token);
 
-        // Store token and user info in httpOnly cookies
-        const response = NextResponse.redirect(new URL('/', req.url));
+        const response = NextResponse.redirect(new URL('/profile', request.url));
 
         response.cookies.set('anilist_token', tokenData.access_token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 365, // 1 year
+            maxAge: 30 * 24 * 60 * 60, // 30 days
             path: '/',
         });
 
@@ -28,16 +28,16 @@ export async function GET(req: NextRequest) {
             name: viewer.name,
             avatar: viewer.avatar,
         }), {
-            httpOnly: false, // Allow client to read user info
+            httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 365,
+            maxAge: 30 * 24 * 60 * 60,
             path: '/',
         });
 
         return response;
     } catch (error) {
-        console.error('AniList auth error:', error);
-        return NextResponse.redirect(new URL('/?error=auth_failed', req.url));
+        console.error('AniList auth callback error:', error);
+        return NextResponse.redirect(new URL('/?error=auth_failed', request.url));
     }
 }

@@ -34,8 +34,8 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ title, animes, loading }) => {
                 <h2 className="text-xl font-bold tracking-tight border-l-4 border-accent pl-4">{title}</h2>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-                {animes.map((anime) => (
-                    <AnimeCard key={anime.slug} anime={anime} />
+                {animes.map((anime, i) => (
+                    <AnimeCard key={anime.slug || `anime-${i}`} anime={anime} />
                 ))}
             </div>
         </section>

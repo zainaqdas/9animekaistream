@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export default async function Home() {
-    const { spotlight, popularToday, latestEpisodes, topAnime } = await getHomePageData();
+    const { spotlight, latestEpisodes } = await getHomePageData();
 
     return (
         <main className="min-h-screen">
@@ -15,18 +15,8 @@ export default async function Home() {
 
             <div className="px-4 md:px-12 mt-12 md:mt-20 relative z-10 space-y-12">
                 <AnimeGrid 
-                    title="Trending Now" 
-                    animes={popularToday} 
-                />
-                
-                <AnimeGrid 
-                    title="Latest Updates" 
+                    title="Latest Episodes" 
                     animes={latestEpisodes} 
-                />
-
-                <AnimeGrid 
-                    title="Top Airing" 
-                    animes={topAnime} 
                 />
             </div>
 

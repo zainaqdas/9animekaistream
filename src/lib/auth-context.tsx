@@ -2,17 +2,19 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-interface Viewer {
+export interface AniListUser {
     id: number;
     name: string;
     avatar: { large: string; medium: string };
+    bannerImage?: string | null;
 }
 
 interface AuthContextType {
-    user: Viewer | null;
+    user: AniListUser | null;
     loading: boolean;
     login: () => void;
     logout: () => Promise<void>;
+    refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -20,17 +22,18 @@ const AuthContext = createContext<AuthContextType>({
     loading: true,
     login: () => {},
     logout: async () => {},
+    refresh: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<Viewer | null>(null);
+    const [user, setUser] = useState<AniListUser | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchUser = useCallback(async () => {
+    const refresh = useCallback(async () => {
         try {
             const res = await fetch('/api/auth/anilist/me');
             const data = await res.json();
-            setUser(data.user || null);
+            setUser(data.user);
         } catch {
             setUser(null);
         } finally {
@@ -39,8 +42,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     useEffect(() => {
-        fetchUser();
-    }, [fetchUser]);
+        refresh();
+    }, [refresh]);
 
     const login = useCallback(() => {
         window.location.href = '/api/auth/anilist/login';
@@ -52,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, logout, refresh }}>
             {children}
         </AuthContext.Provider>
     );

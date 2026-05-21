@@ -1,22 +1,19 @@
-import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
-import { searchMedia } from '@/lib/anilist';
+import { searchAniList } from '@/lib/anilist';
 
-export async function GET(req: NextRequest) {
-    const title = req.nextUrl.searchParams.get('title');
+export async function GET(request: NextRequest) {
+    const { searchParams } = new URL(request.url);
+    const query = searchParams.get('q');
 
-    if (!title) {
-        return NextResponse.json({ error: 'Title parameter required' }, { status: 400 });
+    if (!query) {
+        return NextResponse.json({ error: 'Query is required' }, { status: 400 });
     }
 
-    const cookieStore = await cookies();
-    const token = cookieStore.get('anilist_token')?.value || null;
-
     try {
-        const results = await searchMedia(token, title);
-        return NextResponse.json({ results });
+        const results = await searchAniList(query);
+        return NextResponse.json(results);
     } catch (error) {
-        console.error('Failed to search AniList:', error);
-        return NextResponse.json({ results: [] });
+        console.error('AniList search API error:', error);
+        return NextResponse.json({ error: 'Search failed' }, { status: 500 });
     }
 }

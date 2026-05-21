@@ -2,167 +2,163 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { BookmarkPlus, Check, ChevronUp, Loader2 } from 'lucide-react';
+import { BookmarkCheck, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
 
 interface Props {
-    mediaId?: number;
-    mediaTitle?: string;
+    mediaId?: number | null;
+    mediaTitle: string;
     currentEpisode: number;
-    totalEpisodes: number | null;
+    totalEpisodes?: number | null;
 }
 
 export default function AnilistProgress({ mediaId: propMediaId, mediaTitle, currentEpisode, totalEpisodes }: Props) {
     const { user, login } = useAuth();
-    const [entry, setEntry] = useState<{ id?: number; progress: number; status: string } | null>(null);
+    const [entry, setEntry] = useState<{ id: number; progress: number; status: string } | null>(null);
     const [loading, setLoading] = useState(false);
-    const [syncing, setSyncing] = useState(false);
-    const [resolvedMediaId, setResolvedMediaId] = useState<number | null>(propMediaId || null);
+    const [saving, setSaving] = useState(false);
+    const [mediaId, setMediaId] = useState<number | null>(propMediaId ?? null);
 
-    // Auto-search for media ID by title if not provided directly
-    useEffect(() => {
-        if (propMediaId) {
-            setResolvedMediaId(propMediaId);
-            return;
-        }
-        if (!mediaTitle) return;
-        let cancelled = false;
-        fetch(`/api/anilist/search?title=${encodeURIComponent(mediaTitle)}`)
-            .then(r => r.json())
-            .then(data => {
-                if (!cancelled && data.results?.length > 0) {
-                    setResolvedMediaId(data.results[0].id);
-                }
-            })
-            .catch(() => {});
-        return () => { cancelled = true; };
-    }, [propMediaId, mediaTitle]);
-
-    const fetchEntry = useCallback(async () => {
-        if (!user) return;
-        setLoading(true);
+    // Fetch user's list to find existing entry
+    const fetchList = useCallback(async (id: number) => {
         try {
             const res = await fetch('/api/anilist/list');
+            if (!res.ok) return;
             const data = await res.json();
-            if (data.collection) {
-                for (const list of data.collection.lists) {
-                    for (const e of list.entries) {
-                        if (e.media.id === resolvedMediaId) {
-                            setEntry({ id: e.id, progress: e.progress, status: e.status });
-                            return;
-                        }
+            for (const list of data.lists || []) {
+                for (const e of list.entries || []) {
+                    if (e.media.id === id) {
+                        setEntry({ id: e.id, progress: e.progress, status: e.status });
+                        return;
                     }
                 }
             }
-            setEntry(null);
-        } catch {
-            setEntry(null);
-        } finally {
-            setLoading(false);
-        }
-    }, [user, resolvedMediaId]);
+        } catch {}
+    }, []);
 
+    // Try to find existing entry for this media
     useEffect(() => {
-        if (user && resolvedMediaId) fetchEntry();
-    }, [user, resolvedMediaId, fetchEntry]);
+        if (!user || !mediaId) return;
+        fetchList(mediaId);
+    }, [user, mediaId, fetchList]);
 
-    const handleSync = async () => {
-        if (!user) {
-            login();
-            return;
-        }
+    const updateProgress = useCallback(async (newProgress: number) => {
+        if (!mediaId || saving) return;
+        setSaving(true);
 
-        setSyncing(true);
+        const status = totalEpisodes && newProgress >= totalEpisodes ? 'COMPLETED' : 'CURRENT';
+
         try {
-            const newProgress = Math.max(currentEpisode, entry?.progress || 0);
-            const isComplete = totalEpisodes ? newProgress >= totalEpisodes : false;
-
             const res = await fetch('/api/anilist/entry', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    mediaId: resolvedMediaId,
+                    mediaId,
                     progress: newProgress,
-                    status: isComplete ? 'COMPLETED' : entry?.status === 'COMPLETED' ? 'COMPLETED' : 'CURRENT',
-                    id: entry?.id,
+                    status,
                 }),
             });
-
-            const data = await res.json();
-            if (data.entry) {
-                setEntry({ id: data.entry.id, progress: data.entry.progress, status: data.entry.status });
+            if (res.ok) {
+                const data = await res.json();
+                setEntry({ id: data.id, progress: data.progress, status: data.status });
             }
-        } catch (e) {
-            console.error('Failed to sync progress:', e);
-        } finally {
-            setSyncing(false);
-        }
-    };
+        } catch {}
+        setSaving(false);
+    }, [mediaId, saving, totalEpisodes]);
 
-    if (!user && !loading) {
-        return (
-            <button
-                onClick={login}
-                className="bg-white/5 hover:bg-accent border border-white/10 px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-2 transition-all hover:scale-105 uppercase tracking-wider"
-            >
-                <BookmarkPlus size={16} />
-                {resolvedMediaId ? 'Track on AniList' : 'Sign in to Track'}
-            </button>
-        );
-    }
+    // Auto-sync if not yet tracked
+    const syncEpisode = useCallback(async () => {
+        if (!user || !mediaId || entry || saving || loading) return;
 
-    if (!resolvedMediaId) {
-        return (
-            <div className="bg-white/5 border border-white/10 px-4 py-3 rounded-xl flex items-center gap-2 text-xs font-bold text-muted-foreground">
-                <Loader2 size={16} className="animate-spin" />
-                Looking up anime...
-            </div>
-        );
-    }
+        // No existing entry — create one with progress = current episode
+        setLoading(true);
+        const status = totalEpisodes && currentEpisode >= totalEpisodes ? 'COMPLETED' : 'CURRENT';
+        try {
+            const res = await fetch('/api/anilist/entry', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mediaId,
+                    progress: currentEpisode,
+                    status,
+                }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setEntry({ id: data.id, progress: data.progress, status: data.status });
+            }
+        } catch {}
+        setLoading(false);
+    }, [user, mediaId, entry, saving, loading, currentEpisode, totalEpisodes]);
 
-    if (loading) {
-        return (
-            <div className="bg-white/5 border border-white/10 px-4 py-3 rounded-xl flex items-center gap-2 text-xs font-bold text-muted-foreground">
-                <Loader2 size={16} className="animate-spin" />
-                Loading...
-            </div>
-        );
-    }
+    if (!user) return null;
 
     return (
-        <div className="flex items-center gap-3">
-            <div className="bg-card border border-white/10 rounded-xl px-4 py-3 flex items-center gap-3">
+        <div className="bg-card rounded-2xl p-4 border border-white/5 space-y-3">
+            <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Progress</span>
-                    <div className="flex items-center gap-1">
-                        {entry ? (
-                            <>
-                                <span className="text-sm font-bold text-accent">{entry.progress}</span>
-                                {totalEpisodes && (
-                                    <>
-                                        <span className="text-muted-foreground">/</span>
-                                        <span className="text-sm font-bold text-muted-foreground">{totalEpisodes}</span>
-                                    </>
-                                )}
-                            </>
-                        ) : (
-                            <span className="text-sm font-bold text-muted-foreground">—</span>
-                        )}
-                    </div>
+                    <BookmarkCheck size={16} className="text-accent" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        AniList Progress
+                    </span>
                 </div>
+                {entry?.status === 'COMPLETED' && (
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">
+                        Completed
+                    </span>
+                )}
             </div>
 
-            <button
-                onClick={handleSync}
-                disabled={syncing}
-                className="bg-accent hover:bg-accent/90 disabled:opacity-50 text-white px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-2 transition-all hover:scale-105 shadow-lg shadow-accent/20 uppercase tracking-wider"
-            >
-                {syncing ? (
-                    <Loader2 size={16} className="animate-spin" />
-                ) : (
-                    <ChevronUp size={16} />
-                )}
-                {syncing ? 'Syncing...' : `EP ${currentEpisode}`}
-            </button>
+            {loading ? (
+                <div className="flex items-center justify-center py-2">
+                    <Loader2 className="animate-spin text-muted-foreground" size={18} />
+                </div>
+            ) : entry ? (
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => updateProgress(Math.max(0, entry.progress - 1))}
+                                disabled={saving || entry.progress <= 0}
+                                className="p-1 rounded hover:bg-white/5 disabled:opacity-30 transition-all"
+                            >
+                                <ChevronDown size={16} />
+                            </button>
+                            <span className="font-bold text-lg min-w-[3ch] text-center tabular-nums">
+                                {entry.progress}
+                            </span>
+                            <button
+                                onClick={() => updateProgress(entry.progress + 1)}
+                                disabled={saving || (totalEpisodes ? entry.progress >= totalEpisodes : false)}
+                                className="p-1 rounded hover:bg-white/5 disabled:opacity-30 transition-all"
+                            >
+                                <ChevronUp size={16} />
+                            </button>
+                        </div>
+                        {totalEpisodes && (
+                            <span className="text-sm text-muted-foreground">/ {totalEpisodes}</span>
+                        )}
+                    </div>
+                    {saving && <Loader2 className="animate-spin text-muted-foreground" size={16} />}
+                    {!saving && entry.status !== 'COMPLETED' && (
+                        <button
+                            onClick={() => updateProgress(totalEpisodes || currentEpisode)}
+                            className="text-xs text-accent hover:text-accent/80 font-bold transition-colors"
+                        >
+                            {totalEpisodes ? 'Catch Up' : 'Mark Current'}
+                        </button>
+                    )}
+                </div>
+            ) : (
+                <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Not in your list</span>
+                    <button
+                        onClick={syncEpisode}
+                        className="text-xs text-accent hover:text-accent/80 font-bold transition-colors"
+                    >
+                        Track Episode {currentEpisode}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

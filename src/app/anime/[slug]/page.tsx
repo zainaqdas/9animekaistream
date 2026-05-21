@@ -1,10 +1,11 @@
 import { getAnimeInfo } from '@/lib/scraper';
+import { resolveAniListId } from '@/lib/anilist';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import AnilistAddButton from '@/components/AnilistAddButton';
 import { Play, Star, Calendar, Tv } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import AnilistAddButton from '@/components/AnilistAddButton';
 
 export default async function AnimeDetail({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
@@ -17,6 +18,15 @@ export default async function AnimeDetail({ params }: { params: Promise<{ slug: 
             </div>
         );
     }
+
+    // Auto-resolve AniList mapping
+    const aniListId = await resolveAniListId(
+        slug,
+        info.title,
+        info.year,
+        info.episodes.length,
+        info.type,
+    );
 
     const firstEpisode = info.episodes[info.episodes.length - 1]; // Usually ep 1 is at the end of the list on 9anime
     const reversedEpisodes = [...info.episodes].reverse(); // Reversed copy for display
@@ -108,7 +118,7 @@ export default async function AnimeDetail({ params }: { params: Promise<{ slug: 
                                     </button>
                                 </Link>
                                 <AnilistAddButton
-                                    mediaId={0}
+                                    mediaId={aniListId}
                                     mediaTitle={info.title}
                                     totalEpisodes={info.episodes.length}
                                 />

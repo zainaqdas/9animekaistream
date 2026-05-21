@@ -11,7 +11,7 @@ const Footer = () => {
                         <Logo size={40} />
                     </Link>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                        The ultimate destination for anime fans. Stream your favorite anime in high quality with Sub and Dub on OneeChan.
+                        The ultimate destination for anime fans. Stream your favorite anime in high quality with Sub and Dub on ONEECHAN.
                     </p>
                 </div>
 
@@ -41,8 +41,8 @@ const Footer = () => {
             </div>
             
             <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-white/5 text-center text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground/50">
-                <p>© 2026 OneeChan. Dedicated to the anime community.</p>
-                <p className="mt-2 italic font-medium">Disclaimer: OneeChan does not store any files on its server. All contents are provided by non-affiliated third parties.</p>
+                <p>© 2026 ONEECHAN. Dedicated to the anime community.</p>
+                <p className="mt-2 italic font-medium">Disclaimer: ONEECHAN does not store any files on its server. All contents are provided by non-affiliated third parties.</p>
             </div>
         </footer>
     );

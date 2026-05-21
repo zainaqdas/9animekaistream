@@ -1,252 +1,507 @@
+import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
+
+// ─── AniList API ────────────────────────────────────────────────────────────
+
 const ANILIST_API = 'https://graphql.anilist.co';
 const AUTH_URL = 'https://anilist.co/api/v2/oauth/authorize';
 const TOKEN_URL = 'https://anilist.co/api/v2/oauth/token';
 
-// ── GraphQL Queries ──────────────────────────────────────────
+const client = axios.create({
+    baseURL: ANILIST_API,
+    timeout: 10000,
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+});
 
-const SEARCH_MEDIA_QUERY = `
-  query ($search: String, $type: MediaType) {
-    Page(page: 1, perPage: 5) {
-      media(search: $search, type: $type) {
-        id
-        title { romaji english }
-        coverImage { large medium }
-        format
-        episodes
-        averageScore
-      }
-    }
-  }
-`;
+// ─── GraphQL Queries ────────────────────────────────────────────────────────
 
-const VIEWER_QUERY = `
-  query {
-    Viewer {
+const SEARCH_MEDIA = `
+query ($search: String, $page: Int, $perPage: Int) {
+  Page(page: $page, perPage: $perPage) {
+    media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
       id
-      name
-      avatar {
-        large
-        medium
-      }
-      siteUrl
+      idMal
+      title { romaji english native }
+      startDate { year }
+      episodes
+      format
+      status
+      averageScore
+      coverImage { large }
+      bannerImage
+      description
+      genres
     }
   }
-`;
+}`;
 
-const ANIME_LIST_QUERY = `
-  query ($userId: Int, $type: MediaType) {
-    MediaListCollection(userId: $userId, type: $type) {
-      lists {
-        name
-        isCustomList
-        entries {
+const GET_MEDIA_BY_ID = `
+query ($id: Int) {
+  Media(id: $id, type: ANIME) {
+    id
+    idMal
+    title { romaji english }
+    startDate { year }
+    episodes
+    format
+    status
+  }
+}`;
+
+const GET_VIEWER = `
+query {
+  Viewer {
+    id
+    name
+    avatar { large medium }
+    bannerImage
+    about
+    statistics {
+      anime { count episodesWatched minutesWatched }
+    }
+  }
+}`;
+
+const GET_USER_LIST = `
+query ($userId: Int, $type: MediaType) {
+  MediaListCollection(userId: $userId, type: $type) {
+    lists {
+      name
+      isCustomList
+      entries {
+        id
+        progress
+        status
+        score
+        media {
           id
+          idMal
+          title { romaji english }
+          coverImage { large }
+          episodes
+          format
           status
-          score
-          progress
-          progressVolumes
-          repeat
-          priority
-          notes
-          startedAt { year month day }
-          completedAt { year month day }
-          updatedAt
-          media {
-            id
-            title { romaji english native }
-            coverImage { large medium }
-            type
-            format
-            status
-            episodes
-            averageScore
-            genres
-            isAdult
-          }
+          startDate { year }
         }
       }
     }
   }
-`;
+}`;
 
-const SAVE_ENTRY_MUTATION = `
-  mutation ($mediaId: Int, $status: MediaListStatus, $score: Float, $progress: Int, $repeat: Int, $notes: String, $id: Int) {
-    SaveMediaListEntry(mediaId: $mediaId, status: $status, score: $score, progress: $progress, repeat: $repeat, notes: $notes, id: $id) {
-      id
-      status
-      score
-      progress
-      progressVolumes
-      repeat
-      priority
-      notes
-      startedAt { year month day }
-      completedAt { year month day }
-      updatedAt
-      media {
-        id
-        title { romaji english }
-        coverImage { large medium }
-        episodes
-      }
-    }
+const SAVE_ENTRY = `
+mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus, $score: Float) {
+  SaveMediaListEntry(mediaId: $mediaId, progress: $progress, status: $status, score: $score) {
+    id
+    mediaId
+    progress
+    status
+    score
   }
-`;
+}`;
 
-const DELETE_ENTRY_MUTATION = `
-  mutation ($id: Int) {
-    DeleteMediaListEntry(id: $id) {
-      deleted
-    }
+const DELETE_ENTRY = `
+mutation ($id: Int) {
+  DeleteMediaListEntry(id: $id) {
+    deleted
   }
-`;
+}`;
 
-// ── Types ────────────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+export type MediaListStatus = 'CURRENT' | 'PLANNING' | 'COMPLETED' | 'DROPPED' | 'PAUSED' | 'REPEATING';
+
+export interface AniListMedia {
+    id: number;
+    idMal: number | null;
+    title: { romaji: string; english: string | null; native: string | null };
+    startDate: { year: number | null };
+    episodes: number | null;
+    format: string | null;
+    status: string | null;
+    averageScore: number | null;
+    coverImage: { large: string | null };
+    bannerImage: string | null;
+    description: string | null;
+    genres: string[] | null;
+}
 
 export interface AniListViewer {
     id: number;
     name: string;
     avatar: { large: string; medium: string };
-    siteUrl: string;
-}
-
-export interface AniListMedia {
-    id: number;
-    title: { romaji: string; english: string | null; native: string | null };
-    coverImage: { large: string; medium: string };
-    type: string;
-    format: string;
-    status: string;
-    episodes: number | null;
-    averageScore: number | null;
-    genres: string[];
-    isAdult: boolean;
-}
-
-export interface AniListMediaSearchResult {
-    id: number;
-    title: { romaji: string; english: string | null };
-    coverImage: { large: string; medium: string };
-    format: string;
-    episodes: number | null;
-    averageScore: number | null;
+    bannerImage: string | null;
+    about: string | null;
+    statistics: {
+        anime: { count: number; episodesWatched: number; minutesWatched: number };
+    } | null;
 }
 
 export interface AniListEntry {
     id: number;
-    status: string;
-    score: number;
     progress: number;
-    progressVolumes: number | null;
-    repeat: number;
-    priority: number;
-    notes: string | null;
-    startedAt: { year: number | null; month: number | null; day: number | null };
-    completedAt: { year: number | null; month: number | null; day: number | null };
-    updatedAt: number;
+    status: MediaListStatus;
+    score: number;
     media: AniListMedia;
 }
 
 export interface AniListCollection {
-    lists: {
-        name: string;
-        isCustomList: boolean;
-        entries: AniListEntry[];
-    }[];
+    lists: { name: string; entries: AniListEntry[] }[];
 }
 
-export type MediaListStatus = 'CURRENT' | 'PLANNING' | 'COMPLETED' | 'DROPPED' | 'PAUSED' | 'REPEATING';
+// ─── Mapping Cache ──────────────────────────────────────────────────────────
 
-// ── Helpers ──────────────────────────────────────────────────
-
-function getClientId(): string {
-    return process.env.ANILIST_CLIENT_ID || '';
+interface MappingEntry {
+    aniListId: number;
+    confirmed: boolean;
 }
 
-function getClientSecret(): string {
-    return process.env.ANILIST_CLIENT_SECRET || '';
+interface MappingData {
+    mappings: Record<string, MappingEntry>;
+    overrides: Record<string, number>;
+    failed: Record<string, string>; // slug → title (so we know what failed)
 }
 
-function getRedirectUri(): string {
-    return process.env.ANILIST_REDIRECT_URI || 'http://localhost:3000/api/auth/anilist/callback';
-}
+const CACHE_DIR = path.join(process.cwd(), '.next', 'cache', 'anilist');
+const MAPPING_FILE = path.join(CACHE_DIR, 'mapping.json');
 
-async function graphqlRequest<T>(query: string, variables: Record<string, unknown> = {}, token?: string): Promise<T> {
-    const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-    };
+let mappingData: MappingData = { mappings: {}, overrides: {}, failed: {} };
 
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+function loadMapping(): void {
+    try {
+        if (fs.existsSync(MAPPING_FILE)) {
+            const raw = fs.readFileSync(MAPPING_FILE, 'utf-8');
+            mappingData = JSON.parse(raw);
+        }
+    } catch (e) {
+        console.error('Failed to load AniList mapping:', e);
     }
+}
 
-    const res = await fetch(ANILIST_API, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ query, variables }),
-    });
-
-    const json = await res.json();
-
-    if (json.errors) {
-        throw new Error(json.errors[0]?.message || 'AniList API error');
+function saveMapping(): void {
+    try {
+        if (!fs.existsSync(CACHE_DIR)) {
+            fs.mkdirSync(CACHE_DIR, { recursive: true });
+        }
+        fs.writeFileSync(MAPPING_FILE, JSON.stringify(mappingData, null, 2), 'utf-8');
+    } catch (e) {
+        console.error('Failed to save AniList mapping:', e);
     }
-
-    return json.data as T;
 }
 
-// ── Auth ─────────────────────────────────────────────────────
+// Load on module init
+loadMapping();
 
-export function getAuthorizationUrl(): string {
-    const params = new URLSearchParams({
-        client_id: getClientId(),
-        redirect_uri: getRedirectUri(),
-        response_type: 'code',
-    });
-    return `${AUTH_URL}?${params.toString()}`;
-}
+// ─── GraphQL Request ────────────────────────────────────────────────────────
 
-export async function exchangeCodeForToken(code: string): Promise<{ access_token: string; token_type: string; expires_in: number }> {
-    const res = await fetch(TOKEN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-            grant_type: 'authorization_code',
-            client_id: getClientId(),
-            client_secret: getClientSecret(),
-            redirect_uri: getRedirectUri(),
-            code,
-        }),
-    });
+async function graphqlRequest<T>(query: string, variables: Record<string, unknown> = {}, token?: string | null, retries = 3): Promise<T> {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Token exchange failed: ${text}`);
+            const response = await client.post<{ data: T }>('/', { query, variables }, { headers });
+            return response.data.data;
+        } catch (error: unknown) {
+            if (attempt < retries && axios.isAxiosError(error) && error.response?.status === 429) {
+                const waitSeconds = Math.min(60, Math.pow(2, attempt) * 5);
+                console.warn(`AniList rate limited (429), retry ${attempt + 1}/${retries} in ${waitSeconds}s...`);
+                await new Promise(resolve => setTimeout(resolve, waitSeconds * 1000));
+                continue;
+            }
+            throw error;
+        }
     }
-
-    return res.json();
+    throw new Error('Unreachable');
 }
 
-// ── API Methods ──────────────────────────────────────────────
+// ─── Title Normalization ────────────────────────────────────────────────────
 
-export async function searchMedia(token: string | null, title: string): Promise<AniListMediaSearchResult[]> {
-    const data = await graphqlRequest<{ Page: { media: AniListMediaSearchResult[] } }>(
-        SEARCH_MEDIA_QUERY,
-        { search: title, type: 'ANIME' },
-        token || undefined
+function normalizeTitle(title: string): string {
+    return title
+        .toLowerCase()
+        .replace(/\(dub\)/gi, '')
+        .replace(/\(sub\)/gi, '')
+        .replace(/\(tv\)/gi, '')
+        .replace(/\(movie\)/gi, '')
+        .replace(/\(ona\)/gi, '')
+        .replace(/\(ova\)/gi, '')
+        .replace(/\(ona\)/gi, '')
+        .replace(/[\(\)\[\]\{\}]/g, '')
+        .replace(/['']/g, "'")
+        .replace(/[""]/g, '"')
+        .replace(/[:;,._\-–—]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function getTitleTokens(title: string): Set<string> {
+    return new Set(
+        normalizeTitle(title)
+            .split(/\s+/)
+            .filter(t => t.length > 2 && !['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can'].includes(t))
     );
+}
+
+function titleSimilarity(title1: string, title2: string): number {
+    const tokens1 = getTitleTokens(title1);
+    const tokens2 = getTitleTokens(title2);
+
+    if (tokens1.size === 0 || tokens2.size === 0) return 0;
+
+    let intersection = 0;
+    for (const token of tokens1) {
+        for (const token2 of tokens2) {
+            if (token === token2 || (token.length > 4 && token2.length > 4 && (token.includes(token2) || token2.includes(token)))) {
+                intersection++;
+                break;
+            }
+        }
+    }
+
+    const union = new Set([...tokens1, ...tokens2]);
+    return intersection / union.size;
+}
+
+// ─── Auto-Matching ──────────────────────────────────────────────────────────
+
+export interface MatchResult {
+    aniListId: number;
+    confidence: number;
+    matchedTitle: string;
+}
+
+export function getCachedMapping(slug: string): number | null {
+    // Check overrides first (highest priority)
+    if (mappingData.overrides[slug]) return mappingData.overrides[slug];
+    // Check auto-mapped
+    if (mappingData.mappings[slug]) return mappingData.mappings[slug].aniListId;
+    return null;
+}
+
+export function isFailedSlug(slug: string): boolean {
+    return slug in mappingData.failed;
+}
+
+function setMapping(slug: string, aniListId: number, confirmed: boolean): void {
+    mappingData.mappings[slug] = { aniListId, confirmed };
+    delete mappingData.failed[slug];
+    saveMapping();
+}
+
+function setFailed(slug: string, title: string): void {
+    mappingData.failed[slug] = title;
+    saveMapping();
+}
+
+export function setManualOverride(slug: string, aniListId: number): void {
+    mappingData.overrides[slug] = aniListId;
+    delete mappingData.failed[slug];
+    saveMapping();
+}
+
+export function removeManualOverride(slug: string): void {
+    delete mappingData.overrides[slug];
+    saveMapping();
+}
+
+/**
+ * Normalize a 9anime slug into a searchable title
+ * e.g. "kimetsu-no-yaiba-hashira-training-arc-dub" → "kimetsu no yaiba hashira training arc"
+ */
+function slugToSearchable(slug: string): string {
+    return slug
+        .replace(/-dub$/i, '')
+        .replace(/-sub$/i, '')
+        .replace(/[-]/g, ' ')
+        .trim();
+}
+
+/**
+ * Search AniList for a media entry matching the given parameters.
+ * Uses the 9anime slug as a hint when the title is ambiguous.
+ */
+export async function searchAniList(title: string): Promise<AniListMedia[]> {
+    const data = await graphqlRequest<{ Page: { media: AniListMedia[] } }>(SEARCH_MEDIA, {
+        search: title,
+        page: 1,
+        perPage: 8,
+    });
     return data.Page.media;
 }
 
+/**
+ * Resolve a 9anime slug + metadata to an AniList ID.
+ * Uses mapping cache first, then runs auto-matching, then caches the result.
+ */
+export async function resolveAniListId(
+    slug: string,
+    title: string,
+    year?: string | null,
+    episodeCount?: number | null,
+    format?: string | null,
+): Promise<number | null> {
+    // 0. Check cache first
+    const cached = getCachedMapping(slug);
+    if (cached) return cached;
+    if (isFailedSlug(slug)) return null;
+
+    // 1. Try searching by the full title
+    const cleanedTitle = normalizeTitle(title);
+    const searchTerms = cleanedTitle || slugToSearchable(slug);
+
+    let candidates: AniListMedia[];
+    try {
+        candidates = await searchAniList(searchTerms);
+    } catch (error) {
+        console.error(`AniList search error for "${searchTerms}":`, error);
+        return null;
+    }
+
+    if (candidates.length === 0) {
+        // Try with just the slug-derived title
+        try {
+            candidates = await searchAniList(slugToSearchable(slug));
+        } catch {
+            setFailed(slug, title);
+            return null;
+        }
+        if (candidates.length === 0) {
+            setFailed(slug, title);
+            return null;
+        }
+    }
+
+    // 2. Score candidates
+    interface ScoredCandidate {
+        media: AniListMedia;
+        score: number;
+    }
+
+    const scored: ScoredCandidate[] = candidates.map(media => {
+        let score = 0;
+
+        // Title similarity (0-60 points)
+        const romajiSim = titleSimilarity(title, media.title.romaji);
+        const englishSim = media.title.english ? titleSimilarity(title, media.title.english) : 0;
+        const slugSim = titleSimilarity(slugToSearchable(slug), media.title.romaji);
+
+        const bestTitleScore = Math.max(romajiSim, englishSim, slugSim);
+        score += bestTitleScore * 60;
+
+        // Year match (0-20 points)
+        if (year && media.startDate?.year) {
+            const yearNum = parseInt(year);
+            if (yearNum === media.startDate.year) {
+                score += 20;
+            } else if (Math.abs(yearNum - media.startDate.year) === 1) {
+                score += 10; // Close year
+            }
+        }
+
+        // Episode count match (0-10 points)
+        if (episodeCount && media.episodes) {
+            const diff = Math.abs(episodeCount - media.episodes);
+            if (diff === 0) score += 10;
+            else if (diff <= 2) score += 7;
+            else if (diff <= 5) score += 4;
+            else if (diff <= 10) score += 2;
+        }
+
+        // Format match (0-10 points)
+        if (format && media.format) {
+            const normalizedFormat = format.toLowerCase();
+            const mediaFormat = media.format.toLowerCase();
+            if (normalizedFormat === mediaFormat) score += 10;
+            else if (
+                (normalizedFormat.includes('tv') && mediaFormat.includes('tv')) ||
+                (normalizedFormat.includes('movie') && mediaFormat.includes('movie'))
+            ) score += 5;
+        }
+
+        return { media, score };
+    });
+
+    // 3. Sort by score descending
+    scored.sort((a, b) => b.score - a.score);
+
+    if (scored.length === 0) {
+        setFailed(slug, title);
+        return null;
+    }
+
+    const best = scored[0];
+
+    // 4. Determine confidence
+    const confirmed = best.score >= 70;
+    if (best.score >= 40) {
+        setMapping(slug, best.media.id, confirmed);
+        return best.media.id;
+    }
+
+    // Low confidence or no good match — if there's a runner-up close in score,
+    // don't auto-map (too ambiguous)
+    if (scored.length > 1 && scored[1].score >= best.score - 15) {
+        setFailed(slug, title);
+        return null;
+    }
+
+    // Weak match but no competition — still map as unconfirmed
+    setMapping(slug, best.media.id, false);
+    return best.media.id;
+}
+
+// ─── OAuth ──────────────────────────────────────────────────────────────────
+
+export function getAuthorizationUrl(): string {
+    const clientId = process.env.ANILIST_CLIENT_ID;
+    if (!clientId) {
+        console.error('ANILIST_CLIENT_ID environment variable is not set');
+        return '#';
+    }
+    const redirectUri = getRedirectUri();
+    return `${AUTH_URL}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`;
+}
+
+export function getRedirectUri(): string {
+    return process.env.ANILIST_REDIRECT_URI || 'http://localhost:3000/api/auth/anilist/callback';
+}
+
+export interface TokenResponse {
+    access_token: string;
+    refresh_token: string;
+    token_type: string;
+    expires_in: number;
+}
+
+export async function exchangeCodeForToken(code: string): Promise<TokenResponse> {
+    const clientId = process.env.ANILIST_CLIENT_ID;
+    const clientSecret = process.env.ANILIST_CLIENT_SECRET;
+    if (!clientId || !clientSecret) {
+        throw new Error('ANILIST_CLIENT_ID and ANILIST_CLIENT_SECRET must be set');
+    }
+    const response = await axios.post<TokenResponse>(TOKEN_URL, {
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: getRedirectUri(),
+        code,
+        grant_type: 'authorization_code',
+    }, {
+        headers: { 'Content-Type': 'application/json' },
+    });
+    return response.data;
+}
+
+// ─── User / List Operations ─────────────────────────────────────────────────
+
 export async function getViewer(token: string): Promise<AniListViewer> {
-    const data = await graphqlRequest<{ Viewer: AniListViewer }>(VIEWER_QUERY, {}, token);
+    const data = await graphqlRequest<{ Viewer: AniListViewer }>(GET_VIEWER, {}, token);
     return data.Viewer;
 }
 
-export async function getAnimeList(token: string, userId: number): Promise<AniListCollection | null> {
-    const data = await graphqlRequest<{ MediaListCollection: AniListCollection | null }>(
-        ANIME_LIST_QUERY,
+export async function getAnimeList(userId: number, token: string): Promise<AniListCollection> {
+    const data = await graphqlRequest<{ MediaListCollection: AniListCollection }>(
+        GET_USER_LIST,
         { userId, type: 'ANIME' },
         token
     );
@@ -254,41 +509,51 @@ export async function getAnimeList(token: string, userId: number): Promise<AniLi
 }
 
 export async function saveListEntry(
+    mediaId: number,
     token: string,
-    variables: {
-        mediaId?: number;
-        status?: MediaListStatus;
-        score?: number;
-        progress?: number;
-        repeat?: number;
-        notes?: string;
-        id?: number;
-    }
-): Promise<AniListEntry> {
-    const data = await graphqlRequest<{ SaveMediaListEntry: AniListEntry }>(
-        SAVE_ENTRY_MUTATION,
-        variables,
+    progress?: number,
+    status?: MediaListStatus,
+    score?: number,
+): Promise<{ id: number; mediaId: number; progress: number; status: string; score: number | null }> {
+    const vars: Record<string, unknown> = { mediaId };
+    if (progress !== undefined) vars.progress = progress;
+    if (status) vars.status = status;
+    if (score !== undefined) vars.score = score;
+
+    const data = await graphqlRequest<{ SaveMediaListEntry: { id: number; mediaId: number; progress: number; status: string; score: number | null } }>(
+        SAVE_ENTRY,
+        vars,
         token
     );
     return data.SaveMediaListEntry;
 }
 
-export async function deleteListEntry(token: string, entryId: number): Promise<boolean> {
-    const data = await graphqlRequest<{ DeleteMediaListEntry: { deleted: boolean } }>(
-        DELETE_ENTRY_MUTATION,
-        { id: entryId },
-        token
-    );
+export async function deleteListEntry(entryId: number, token: string): Promise<boolean> {
+    const data = await graphqlRequest<{ DeleteMediaListEntry: { deleted: boolean } }>(DELETE_ENTRY, { id: entryId }, token);
     return data.DeleteMediaListEntry.deleted;
 }
 
-// Find a user's list entry for a specific media ID
-export function findEntryInCollection(collection: AniListCollection | null, mediaId: number): AniListEntry | null {
-    if (!collection) return null;
-    for (const list of collection.lists) {
-        for (const entry of list.entries) {
-            if (entry.media.id === mediaId) return entry;
-        }
+// ─── Search for User's Anime (with mapping) ─────────────────────────────────
+
+export interface MappedSearchResult {
+    aniListId: number;
+    title: string;
+    image: string | null;
+    episodes: number | null;
+    format: string | null;
+}
+
+export async function searchForUser(title: string, token?: string | null): Promise<AniListMedia[]> {
+    return searchAniList(title);
+}
+
+// ─── Media Fetching ─────────────────────────────────────────────────────────
+
+export async function getMediaById(id: number): Promise<AniListMedia | null> {
+    try {
+        const data = await graphqlRequest<{ Media: AniListMedia }>(GET_MEDIA_BY_ID, { id });
+        return data.Media;
+    } catch {
+        return null;
     }
-    return null;
 }

@@ -1,20 +1,9 @@
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET() {
-    const response = NextResponse.json({ loggedOut: true });
-
-    response.cookies.set('anilist_token', '', {
-        httpOnly: true,
-        maxAge: 0,
-        path: '/',
-    });
-
-    response.cookies.set('anilist_user', '', {
-        httpOnly: false,
-        maxAge: 0,
-        path: '/',
-    });
-
+export async function GET(request: NextRequest) {
+    const origin = new URL(request.url).origin;
+    const response = NextResponse.redirect(new URL('/', origin));
+    response.cookies.set('anilist_token', '', { maxAge: 0, path: '/' });
+    response.cookies.set('anilist_user', '', { maxAge: 0, path: '/' });
     return response;
 }

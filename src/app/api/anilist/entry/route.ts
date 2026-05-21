@@ -1,49 +1,48 @@
-import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { saveListEntry, deleteListEntry } from '@/lib/anilist';
 
-export async function POST(req: NextRequest) {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('anilist_token')?.value;
+export async function POST(request: NextRequest) {
+    const token = request.cookies.get('anilist_token')?.value;
 
     if (!token) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     try {
-        const body = await req.json();
-        const { mediaId, status, score, progress, notes, id } = body;
+        const body = await request.json();
+        const { mediaId, progress, status, score } = body;
 
-        const entry = await saveListEntry(token, {
-            mediaId,
-            status,
-            score,
-            progress,
-            notes,
-            id,
-        });
+        if (!mediaId) {
+            return NextResponse.json({ error: 'mediaId is required' }, { status: 400 });
+        }
 
-        return NextResponse.json({ entry });
+        const result = await saveListEntry(mediaId, token, progress, status, score);
+        return NextResponse.json(result);
     } catch (error) {
-        console.error('Failed to save list entry:', error);
+        console.error('AniList entry save error:', error);
         return NextResponse.json({ error: 'Failed to save entry' }, { status: 500 });
     }
 }
 
-export async function DELETE(req: NextRequest) {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('anilist_token')?.value;
+export async function DELETE(request: NextRequest) {
+    const token = request.cookies.get('anilist_token')?.value;
 
     if (!token) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     try {
-        const { entryId } = await req.json();
-        await deleteListEntry(token, entryId);
-        return NextResponse.json({ deleted: true });
+        const { searchParams } = new URL(request.url);
+        const entryId = searchParams.get('entryId');
+
+        if (!entryId) {
+            return NextResponse.json({ error: 'entryId is required' }, { status: 400 });
+        }
+
+        await deleteListEntry(parseInt(entryId), token);
+        return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('Failed to delete list entry:', error);
+        console.error('AniList entry delete error:', error);
         return NextResponse.json({ error: 'Failed to delete entry' }, { status: 500 });
     }
 }

@@ -31,7 +31,7 @@ async function rateLimitedDelay(): Promise<void> {
 }
 
 // Cache System
-const CACHE_DIR = path.join(process.cwd(), '.next', 'cache', 'oneechan');
+const CACHE_DIR = path.join(process.cwd(), '.next', 'cache', 'kaistream');
 const CACHE_FILE = path.join(CACHE_DIR, 'cache.json');
 
 interface CacheEntry {
@@ -74,8 +74,6 @@ const CACHE_TTL = {
     INFO: 15 * 60 * 1000,           // 15 mins (catch new episodes)
     STREAMS: 2 * 60 * 60 * 1000,    // 2 hours (links are stable)
     HOME_LATEST: 5 * 60 * 1000,     // 5 mins (fresh updates)
-    HOME_TRENDING: 12 * 60 * 60 * 1000, // 12 hours
-    HOME_TOP: 24 * 60 * 60 * 1000,  // 24 hours
 };
 
 function getFromCache<T>(key: string, ttl: number): T | null {
@@ -127,9 +125,7 @@ export interface StreamServer {
 
 export interface HomePageData {
     spotlight: AnimeSearchResult[];
-    popularToday: AnimeSearchResult[];
     latestEpisodes: AnimeSearchResult[];
-    topAnime: AnimeSearchResult[];
 }
 
 /**
@@ -199,18 +195,14 @@ export async function searchAnime(query: string): Promise<AnimeSearchResult[]> {
  */
 export async function getHomePageData(): Promise<HomePageData> {
     // Try to get individual components from cache first
-    const cachedSpotlight = getFromCache<AnimeSearchResult[]>('home_spotlight', CACHE_TTL.HOME_TOP);
+    const cachedSpotlight = getFromCache<AnimeSearchResult[]>('home_spotlight', CACHE_TTL.SEARCH);
     const cachedLatest = getFromCache<AnimeSearchResult[]>('home_latest', CACHE_TTL.HOME_LATEST);
-    const cachedTrending = getFromCache<AnimeSearchResult[]>('home_trending', CACHE_TTL.HOME_TRENDING);
-    const cachedTop = getFromCache<AnimeSearchResult[]>('home_top', CACHE_TTL.HOME_TOP);
 
     // If all are cached, return immediately
-    if (cachedSpotlight && cachedLatest && cachedTrending && cachedTop) {
+    if (cachedSpotlight && cachedLatest) {
         return {
             spotlight: cachedSpotlight,
-            popularToday: cachedTrending,
-            latestEpisodes: cachedLatest,
-            topAnime: cachedTop
+            latestEpisodes: cachedLatest
         };
     }
 
@@ -269,48 +261,21 @@ export async function getHomePageData(): Promise<HomePageData> {
             return results;
         };
 
-        const popularToday = extractFromSection('.releases.hothome + .listupd').slice(0, 12);
-        const latestEpisodes = extractFromSection('.releases.latesthome + .listupd').slice(0, 12);
-
-        const topAnime: AnimeSearchResult[] = [];
-        $('.ts-wpop-series-gen').next('#wpop-items').find('.serieslist.wpop-weekly li').each((i, el) => {
-            const title = $(el).find('h4 a').text().trim();
-            const link = $(el).find('h4 a').attr('href') || '';
-            const image = $(el).find('img').attr('src') || '';
-            const slug = link ? link.replace(BASE_URL + '/anime/', '').replace(BASE_URL, '').replace(/\//g, '') : '';
-
-            if (title && slug) {
-                topAnime.push({ 
-                    title, 
-                    slug, 
-                    image, 
-                    link, 
-                    version: title.toLowerCase().includes('(dub)') ? 'Dub' : 'Sub' 
-                });
-            }
-        });
-
-        const finalTop = topAnime.slice(0, 10);
+        const latestEpisodes = extractFromSection('.releases.latesthome + .listupd').slice(0, 24);
 
         // Update caches
         setToCache('home_spotlight', spotlight);
         setToCache('home_latest', latestEpisodes);
-        setToCache('home_trending', popularToday);
-        setToCache('home_top', finalTop);
 
         return {
             spotlight: spotlight.length > 0 ? spotlight : cachedSpotlight || [],
-            popularToday: popularToday.length > 0 ? popularToday : cachedTrending || [],
-            latestEpisodes: latestEpisodes.length > 0 ? latestEpisodes : cachedLatest || [],
-            topAnime: finalTop.length > 0 ? finalTop : cachedTop || []
+            latestEpisodes: latestEpisodes.length > 0 ? latestEpisodes : cachedLatest || []
         };
     } catch (error) {
         console.error('Get homepage data error:', error);
         return { 
             spotlight: cachedSpotlight || [],
-            popularToday: cachedTrending || [], 
-            latestEpisodes: cachedLatest || [], 
-            topAnime: cachedTop || [] 
+            latestEpisodes: cachedLatest || [] 
         };
     }
 }
