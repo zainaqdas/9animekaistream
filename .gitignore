@@ -1,0 +1,11 @@
+node_modules
+.next
+.env
+*.log
+source_home.html
+search_results.html
+anime_page.html
+episode_page.html
+megaplay_page.html
+player_page.html
+home.html
