@@ -1,6 +1,6 @@
 # 🐉 KaiStream - Premium Anime Streaming Platform
 
-KaiStream is a modern, high-performance anime streaming web application built with **Next.js 16**, **Tailwind CSS v4**, and **Express.js**. It features a custom-built scraping engine with advanced caching to provide a seamless, ad-free viewing experience with a professional "Emerald" aesthetic.
+KaiStream is a modern, high-performance anime streaming web application built with **Next.js 16 (App Router)** and **Tailwind CSS v4**. It features a custom-built scraping engine with advanced caching to provide a seamless, ad-free viewing experience with a professional "Emerald" aesthetic.
 
 ![KaiStream Hero](https://9anime.org.lv/wp-content/uploads/2024/08/One-Piece-cover-new-1.webp)
 
@@ -10,24 +10,16 @@ KaiStream is a modern, high-performance anime streaming web application built wi
 -   **Advanced Scraper:** Multi-page search support ensuring comprehensive title discovery.
 -   **Smart Caching:** Granular in-memory caching system with specialized TTLs (Time-To-Live) for different content types to reduce source site load and improve speed.
 -   **Mascot Branding:** Unique "Spirit Core" mascot-themed visual identity with a cohesive Emerald Green color scheme.
--   **Responsive Design:** Fully optimized for mobile, tablet, and desktop viewing.
+-   **Vercel Ready:** Optimized for seamless deployment on Vercel as a unified Next.js application.
 -   **Streaming Servers:** Extracts multiple high-quality streaming mirrors for every episode.
 
-## 🚀 Architecture
+## 🚀 Tech Stack
 
-The project is split into two primary components:
-
-### 1. Frontend (Client)
 -   **Framework:** Next.js 16 (App Router)
--   **Styling:** Tailwind CSS 4 (Beta)
+-   **Styling:** Tailwind CSS 4
 -   **Icons:** Lucide React
 -   **Animations:** Framer Motion
--   **Data Fetching:** Server-side scraping with client-side hydration.
-
-### 2. Backend (API)
--   **Framework:** Express.js
--   **Parsing:** Cheerio (High-speed HTML parsing)
--   **HTTP Client:** Axios (Configured with custom User-Agents and timeouts)
+-   **Data Fetching:** Axios & Cheerio (Server-side scraping)
 
 ---
 
@@ -44,37 +36,21 @@ cd 9animekaistream
 ```
 
 ### Step 2: Install Dependencies
-Install root dependencies and client dependencies:
 ```bash
-# Root (API)
-npm install
-
-# Client (Frontend)
-cd client
 npm install
 ```
 
 ### Step 3: Run the Project
-You can run both components independently:
-
-**Start the Frontend:**
 ```bash
-cd client
 npm run dev
 ```
 The site will be available at `http://localhost:3000`.
 
-**Start the Backend API (Optional):**
-```bash
-node src/api/index.js
-```
-The API will be available at `http://localhost:3000` (Note: default Next.js port is 3000, ensure you configure the API port in `index.js` if running simultaneously).
-
 ---
 
-## 📡 API Endpoints (Standalone API)
+## 📡 API Routes
 
-The standalone Express server provides the following endpoints:
+KaiStream includes built-in Next.js API routes that provide the same functionality as the previous standalone API:
 
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
