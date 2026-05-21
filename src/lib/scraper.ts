@@ -2,6 +2,8 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import http from 'http';
 import https from 'https';
+import fs from 'fs';
+import path from 'path';
 
 const BASE_URL = 'https://9anime.org.lv';
 
@@ -15,15 +17,65 @@ const client = axios.create({
     }
 });
 
+// Rate limiting: small delay between consecutive requests to be respectful
+const RATE_LIMIT_DELAY_MS = 300;
+let lastRequestTime = 0;
+
+async function rateLimitedDelay(): Promise<void> {
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTime;
+    if (timeSinceLastRequest < RATE_LIMIT_DELAY_MS) {
+        await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS - timeSinceLastRequest));
+    }
+    lastRequestTime = Date.now();
+}
+
 // Cache System
-const cache = new Map<string, { data: unknown; timestamp: number }>();
+const CACHE_DIR = path.join(process.cwd(), '.next', 'cache', 'kaistream');
+const CACHE_FILE = path.join(CACHE_DIR, 'cache.json');
+
+interface CacheEntry {
+    data: unknown;
+    timestamp: number;
+}
+
+let cache = new Map<string, CacheEntry>();
+
+// Load cache from disk on startup
+function loadCacheFromDisk(): void {
+    try {
+        if (fs.existsSync(CACHE_FILE)) {
+            const raw = fs.readFileSync(CACHE_FILE, 'utf-8');
+            const parsed = JSON.parse(raw) as Record<string, CacheEntry>;
+            cache = new Map(Object.entries(parsed));
+        }
+    } catch (e) {
+        console.error('Failed to load cache from disk:', e);
+    }
+}
+
+function saveCacheToDisk(): void {
+    try {
+        if (!fs.existsSync(CACHE_DIR)) {
+            fs.mkdirSync(CACHE_DIR, { recursive: true });
+        }
+        const obj = Object.fromEntries(cache.entries());
+        fs.writeFileSync(CACHE_FILE, JSON.stringify(obj), 'utf-8');
+    } catch (e) {
+        console.error('Failed to save cache to disk:', e);
+    }
+}
+
+// Load existing cache on module initialization
+loadCacheFromDisk();
+
 const CACHE_TTL = {
     SEARCH: 24 * 60 * 60 * 1000,    // 24 hours (titles are stable)
     INFO: 15 * 60 * 1000,           // 15 mins (catch new episodes)
     STREAMS: 2 * 60 * 60 * 1000,    // 2 hours (links are stable)
     HOME_LATEST: 5 * 60 * 1000,     // 5 mins (fresh updates)
     HOME_TRENDING: 12 * 60 * 60 * 1000, // 12 hours
-    HOME_TOP: 24 * 60 * 60 * 1000   // 24 hours
+    HOME_TOP: 24 * 60 * 60 * 1000,  // 24 hours
 };
 
 function getFromCache<T>(key: string, ttl: number): T | null {
@@ -36,6 +88,8 @@ function getFromCache<T>(key: string, ttl: number): T | null {
 
 function setToCache<T>(key: string, data: T): void {
     cache.set(key, { data, timestamp: Date.now() });
+    // Persist to disk asynchronously
+    saveCacheToDisk();
 }
 
 export interface AnimeSearchResult {
@@ -60,6 +114,10 @@ export interface AnimeInfo {
     image: string;
     episodes: Episode[];
     version: 'Sub' | 'Dub';
+    rating?: string;
+    year?: string;
+    type?: string;
+    status?: string;
 }
 
 export interface StreamServer {
@@ -88,6 +146,7 @@ export async function searchAnime(query: string): Promise<AnimeSearchResult[]> {
 
     try {
         while (hasNextPage && currentPage <= 10) {
+            await rateLimitedDelay();
             const url = currentPage === 1 
                 ? `/?s=${encodeURIComponent(query)}` 
                 : `/page/${currentPage}/?s=${encodeURIComponent(query)}`;
@@ -156,6 +215,7 @@ export async function getHomePageData(): Promise<HomePageData> {
     }
 
     try {
+        await rateLimitedDelay();
         const response = await client.get('/');
         const $ = cheerio.load(response.data);
         
@@ -264,6 +324,7 @@ export async function getAnimeInfo(slug: string): Promise<AnimeInfo | null> {
     if (cachedData) return cachedData;
 
     try {
+        await rateLimitedDelay();
         const response = await client.get(`/anime/${slug}/`);
         const $ = cheerio.load(response.data);
         
@@ -276,6 +337,17 @@ export async function getAnimeInfo(slug: string): Promise<AnimeInfo | null> {
         if (title.toLowerCase().includes('(dub)') || slug.toLowerCase().includes('-dub')) {
             version = 'Dub';
         }
+
+        // Scrape additional metadata: rating, year, type, status
+        const rating = $('.rating .num, .rtp .num, .post-ratings .num').first().text().trim() || undefined;
+        const type = $('.type').first().text().trim() || undefined;
+        const status = $('.status, .anime-status').first().text().trim() || undefined;
+
+        // Try to extract year from synopsis or content
+        let year: string | undefined;
+        const contentText = $('.entry-content').text();
+        const yearMatch = contentText.match(/\b(19\d{2}|20\d{2})\b/);
+        if (yearMatch) year = yearMatch[1];
 
         $('.eplister ul li').each((i, el) => {
             const epNum = $(el).find('.epl-num').text().trim();
@@ -291,7 +363,7 @@ export async function getAnimeInfo(slug: string): Promise<AnimeInfo | null> {
             }
         });
 
-        const result = { title, synopsis, image, episodes, version };
+        const result: AnimeInfo = { title, synopsis, image, episodes, version, rating, year, type, status };
         setToCache(cacheKey, result);
         return result;
     } catch (error) {
@@ -309,6 +381,7 @@ export async function getStreamLinks(episodeSlug: string): Promise<StreamServer[
     if (cachedData) return cachedData;
 
     try {
+        await rateLimitedDelay();
         const response = await client.get(`/${episodeSlug}/`);
         const $ = cheerio.load(response.data);
         const streams: StreamServer[] = [];

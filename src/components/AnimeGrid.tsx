@@ -32,9 +32,6 @@ const AnimeGrid: React.FC<AnimeGridProps> = ({ title, animes, loading }) => {
         <section className="py-8">
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold tracking-tight border-l-4 border-accent pl-4">{title}</h2>
-                <button className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors">
-                    View All
-                </button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
                 {animes.map((anime) => (

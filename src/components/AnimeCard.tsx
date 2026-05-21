@@ -22,11 +22,12 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
         >
             <Link href={`/anime/${anime.slug}`}>
                 <div className="relative w-full h-full">
-                    <img 
+                    <Image 
                         src={anime.image} 
                         alt={anime.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        loading="lazy"
+                        fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
+                        className="object-cover transition-transform duration-500 group-hover:scale-110"
                     />
                     
                     {/* Overlay */}

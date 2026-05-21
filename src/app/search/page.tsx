@@ -1,5 +1,6 @@
 import { searchAnime } from '@/lib/scraper';
 import AnimeGrid from '@/components/AnimeGrid';
+import AnimeCard from '@/components/AnimeCard';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Search } from 'lucide-react';
@@ -57,6 +58,3 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </main>
     );
 }
-
-// Inline AnimeCard for use without imports if needed, but it's already in components
-import AnimeCard from '@/components/AnimeCard';

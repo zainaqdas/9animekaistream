@@ -68,7 +68,7 @@ export default async function WatchPage({ params }: { params: Promise<{ slug: st
                             </div>
 
                             <div className="flex-1 overflow-y-auto space-y-2 pr-2 scrollbar-thin">
-                                {info?.episodes.reverse().map((ep) => (
+                                {[...(info?.episodes || [])].reverse().map((ep) => (
                                     <Link
                                         key={ep.slug}
                                         href={`/watch/${ep.slug}`}
